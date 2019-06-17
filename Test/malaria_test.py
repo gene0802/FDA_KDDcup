@@ -23,7 +23,7 @@ Experiment_num = 0
 action_buckets = (10,10)
 episode_num = 20
 state_num = 5
-mode = "Qlearning"
+mode = "testing"
 
 class CustomAgent:
     
@@ -42,26 +42,19 @@ class CustomAgent:
                 action[i] = int(((s - l) / (u - l)) * action_buckets[i])
         return tuple(action)
 
-    def choose_action(self, state, q_table, epsilon,action_buckets):
-        if np.random.random_sample() < epsilon: # 有 ε 的機率會選擇隨機 action
-            #print("random action")
-            return self.get_action([random.random(),random.random()],action_buckets)
-        else: # 其他時間根據現有 policy 選擇 action，也就是在 Q table 裡目前 state 中，選擇擁有最大 Q value 的 action
-           
-            if np.amax(q_table[state])<= 0.0 :
-                #print("random action")
-                return self.get_action([random.random(),random.random()],action_buckets)
-            else :
-                #print("table action")
-                result = np.where(q_table[state] == np.amax(q_table[state]))
-                return (result[0][0], result[1][0])
-    def append_Data(self,policy,rewards,epsilon,lr):
+    def choose_action(self, state):
+        if state%2 == 0:
+            return [1.0,0.0]
+        else :
+            return [0.0,1.0]
+
+    def append_Data(self,policy,rewards):
         s= pd.Series({'action1':policy['1'],'reward1':rewards[0], 
                               'action2':policy['2'],'reward2':rewards[1],
                               'action3':policy['3'],'reward3':rewards[2],
                               'action4':policy['4'],'reward4':rewards[3],
                               'action5':policy['5'],'reward5':rewards[4],
-                              'total_reward':np.sum(rewards),'epsilon':epsilon,'lr':lr})
+                              'total_reward':np.sum(rewards)})
         self.outputData = self.outputData.append(s,ignore_index=True)
         return 1
     def generate(self):
@@ -80,48 +73,38 @@ class CustomAgent:
 
         gamma =[0.0,0.0,0.0,0.0,0.0]
         q_table = np.zeros((state_num,)+action_buckets)
-        #print("############################################################################################")
+        print("############################################################################################")
         #print ("Experiment:\t"+str(Experiment_num))
         try:
             # Agents should make use of 20 episodes in each training run, if making sequential decisions
             for i in range(episode_num):
-                #print("******************************************************************************")
+                print("******************************************************************************")
                 self.environment.reset()
                 policy = {}
                 states = {}
                 rewards = np.empty(0)
 
                 state = 0
-                epsilon = get_epsilon(i)
-                lr = get_lr(i)
+                #epsilon = get_epsilon(i)
+                #lr = get_lr(i)
 
                 #print ("epsilon:\t"+str(epsilon))    
                 #print("lr:\t"+str(lr))  
                 
                 for j in range(5): #episode length
-                   # print("===========================")
-                   # print("j:\t"+str(j)) 
+                    print("===========================")
+                    print("j:\t"+str(j)) 
 
 
                     ## 抉擇action
-                    action_num = self.choose_action(state, q_table, epsilon,action_buckets)
-                    action = [action_num[0]/action_buckets[0], action_num[1]/action_buckets[1]]
-                   
+                    action = self.choose_action(state)
+                    #action = [action_num[0]/action_buckets[0], action_num[1]/action_buckets[1]]
 
                     ## 獲取 reward , next state
                     next_state, reward, done, brace = self.environment.evaluateAction(action)
-                    #print("action:\t"+str(action)) 
-                    #print("reward:\t"+str(reward)) 
+                    print("action:\t"+str(action)) 
+                    print("reward:\t"+str(reward)) 
 
-
-                    ##更新q_table
-                    
-                    if next_state-1 <5:
-                        q_next_max = np.amax(q_table[next_state-1])
-                    else:   
-                        q_next_max = 0.0
-
-                    q_table[(state,) + action_num] += lr * (reward + gamma[j] * q_next_max - q_table[(state,)+ action_num]) 
                     
                     ##
                     policy[str(j+1)] = action
@@ -130,7 +113,7 @@ class CustomAgent:
 
                 episode_rewards.append(np.sum(rewards))
                 episode_policies.append(policy)
-                self.append_Data(policy,rewards,epsilon,lr)
+                self.append_Data(policy,rewards)
            
             self.outputData.to_csv('./Result/'+'Result_'+str(Experiment_num)+'.csv',float_format='%.2f')
             ##print (q_table) 
@@ -145,6 +128,3 @@ outputfile = "./Submission/"+ mode + "/submission_" + str(episode_num)+ "_" + st
 EvaluateChallengeSubmission(ChallengeSeqDecEnvironment, CustomAgent, outputfile)
 
 ##plot(ITNS, IRS, action_rewards)
-
-
-
