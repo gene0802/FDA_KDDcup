@@ -106,7 +106,8 @@ class CustomAgent:
                     ## 抉擇action
                     action_num = self.choose_action(state, q_table, epsilon,action_buckets)
                     action = [action_num[0]/action_buckets[0], action_num[1]/action_buckets[1]]
-                   
+                    print("action")
+                    print(action)
 
                     ## 獲取 reward , next state
                     next_state, reward, done, brace = self.environment.evaluateAction(action)

@@ -57,8 +57,8 @@ class PolicyGradient:
             inputs=self.tf_obs,
             units=10,
             activation=tf.nn.tanh,  # tanh activation
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
+            #kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
+            #bias_initializer=tf.constant_initializer(0.1),
             name='fc1'
         )
         # fc2
@@ -66,8 +66,8 @@ class PolicyGradient:
             inputs=layer,
             units=self.n_actions,
             activation=None,
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
+            #kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
+            #bias_initializer=tf.constant_initializer(0.1),
             name='fc2'
         )
 
@@ -75,20 +75,23 @@ class PolicyGradient:
 
         with tf.name_scope('loss'):
             # to maximize total reward (log_p * R) is to minimize -(log_p * R), and the tf only have minimize(loss)
-            neg_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=all_act, labels=self.tf_acts)   # this is negative log of chosen action
+            #neg_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=all_act, labels=self.tf_acts)   # this is negative log of chosen action
             # or in this way:
-            # neg_log_prob = tf.reduce_sum(-tf.log(self.all_act_prob)*tf.one_hot(self.tf_acts, self.n_actions), axis=1)
+            #neg_log_prob = tf.reduce_sum(-tf.log(self.all_act_prob)*tf.one_hot(self.tf_acts, self.n_actions), axis=1)
+            neg_log_prob = tf.reduce_sum(-tf.log(self.all_act_prob)*self.tf_acts, axis=1)
             loss = tf.reduce_mean(neg_log_prob * self.tf_vt)  # reward guided loss
 
         with tf.name_scope('train'):
             self.train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
 
     def choose_action(self, observation):
-        print("observation:")
-        print(observation[np.newaxis, :])
+        #print("observation:")
+        #print(observation[np.newaxis, :])
         prob_weights = self.sess.run(self.all_act_prob, feed_dict={self.tf_obs: observation[np.newaxis, :]})
-        action = np.random.choice(range(prob_weights.shape[1]), p=prob_weights.ravel())  # select action w.r.t the actions prob
-        return action
+        #print("prob_weights:")
+        #print(prob_weights[0])
+        #action = np.random.choice(range(prob_weights.shape[1]), p=prob_weights.ravel())  # select action w.r.t the actions prob
+        return prob_weights[0]
 
     def store_transition(self, s, a, r):
         self.ep_obs.append(s)
@@ -99,12 +102,23 @@ class PolicyGradient:
         # discount and normalize episode reward
         discounted_ep_rs_norm = self._discount_and_norm_rewards()
 
+        print("obs:")
+        print(self.ep_obs)
+        print("acts:")
+        print(self.ep_as)
+
+        test = self.sess.run(tf.convert_to_tensor(self.ep_as, dtype=tf.float32))
+        print(test)
+        print("vt:")
+        print(discounted_ep_rs_norm)
         # train on episode
         self.sess.run(self.train_op, feed_dict={
              self.tf_obs: np.vstack(self.ep_obs),  # shape=[None, n_obs]
-             self.tf_acts: np.array(self.ep_as),  # shape=[None, ]
+             self.tf_acts: test,  # shape=[None, ]
              self.tf_vt: discounted_ep_rs_norm,  # shape=[None, ]
         })
+
+        
 
         self.ep_obs, self.ep_as, self.ep_rs = [], [], []    # empty episode data
         return discounted_ep_rs_norm
